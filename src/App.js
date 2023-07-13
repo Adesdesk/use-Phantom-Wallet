@@ -12,7 +12,7 @@ function SolanaButton() {
       try {
         await window.solana.connect();
         setStatus("Connected to Phantom Wallet");
-        // Additional actions after connecting to the wallet
+        
       } catch (error) {
         setStatus("Error connecting to Phantom Wallet");
         console.error("Error connecting to Phantom Wallet:", error);
@@ -29,7 +29,7 @@ function SolanaButton() {
       const account = await generateSolanaAccount();
       setStatus("New account created");
       console.log("New account created:", account);
-      // Additional actions with the account
+      // 
     } catch (error) {
       setStatus("Error creating Solana account");
       console.error("Error creating Solana account:", error);
