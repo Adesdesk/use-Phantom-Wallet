@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { PublicKey, Transaction } from '@solana/web3.js';
+import { PublicKey, Transaction, Keypair, SystemProgram, Connection, clusterApiUrl, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 type DisplayEncoding = 'utf8' | 'hex';
 
@@ -42,6 +42,28 @@ function App() {
     undefined
   );
   const [walletKey, setWalletKey] = useState<string | undefined>(undefined);
+  const [transactionStatus, setTransactionStatus] = useState<string | undefined>(undefined);
+
+  const createAccount = async () => {
+    try {
+      const keypair = Keypair.generate();
+      const publicKey = new PublicKey(keypair.publicKey.toString());
+
+      setTransactionStatus('Processing...');
+
+      // Airdrop 2 SOL to the new account
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+      const airdropSignature = await connection.requestAirdrop(publicKey, LAMPORTS_PER_SOL * 2);
+      await connection.confirmTransaction(airdropSignature);
+
+      console.log('New account created:', publicKey.toString());
+      setWalletKey(publicKey.toString());
+      setTransactionStatus('Success');
+    } catch (err) {
+      console.error('Error creating new account:', err);
+      setTransactionStatus('Failed');
+    }
+  };
 
   useEffect(() => {
     const provider = getProvider();
@@ -59,19 +81,32 @@ function App() {
         // { code: 4001, message: 'User rejected the request.' }
       }
     } else {
-      // Redirect to the extension installation link
       window.open('https://phantom.app/', '_blank');
     }
   };
 
   return (
     <div className="App">
+
+      <button
+        className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mt-4"
+        onClick={createAccount}
+      >
+        Create a new Solana account
+      </button>
+
       <button
         className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
         onClick={connectWallet}
       >
         Connect to Phantom Wallet
       </button>
+
+      {transactionStatus && (
+        <div className="mt-4">
+          Transaction Status: {transactionStatus}
+        </div>
+      )}
     </div>
   );
 }
