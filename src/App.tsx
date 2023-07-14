@@ -1,7 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Keypair, PublicKey, Transaction, Connection, SystemProgram } from '@solana/web3.js';
-// assign the Buffer property of the buffer module to the global Buffer object in browser's window object.
-import * as buffer from "buffer";
+import {
+  Keypair,
+  PublicKey,
+  Transaction,
+  Connection,
+  SystemProgram,
+  AccountInfo,
+} from '@solana/web3.js';
+import * as buffer from 'buffer';
+
 window.Buffer = buffer.Buffer;
 
 type DisplayEncoding = 'utf8' | 'hex';
@@ -38,7 +45,8 @@ function App() {
   const [walletKey, setWalletKey] = useState<string | undefined>(undefined);
   const [notification, setNotification] = useState<string>('');
   const [senderAccount, setSenderAccount] = useState<Keypair | undefined>(undefined);
-
+  const [senderBalance, setSenderBalance] = useState<number | undefined>(undefined);
+  const [receiverBalance, setReceiverBalance] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     const provider = getProvider();
@@ -60,6 +68,7 @@ function App() {
         const response = await (window as any).solana.connect();
         console.log('wallet account', response.publicKey.toString());
         setWalletKey(response.publicKey.toString());
+        await fetchAccountBalances();
       } catch (err) {
         // { code: 4001, message: 'User rejected the request.' }
       }
@@ -73,39 +82,34 @@ function App() {
     try {
       const senderAccount = Keypair.generate(); // Generate a keypair for the sender's account
       const publicKey = senderAccount.publicKey.toString();
-  
-      const connection = new Connection(
-        'https://api.devnet.solana.com',
-        'confirmed'
-      );
-  
+
+      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+
       // Request an airdrop to the sender's account
       const airdropTx = await connection.requestAirdrop(
         senderAccount.publicKey,
         2 * 1000000000 // Airdrop 2 SOL (2 * 10^9 lamports)
       );
       setNotification('Processing transaction...');
-  
+
       // Wait for the transaction to be confirmed
       await connection.confirmTransaction(airdropTx);
-  
+
       setWalletKey(publicKey);
       setNotification('Transaction successful!');
       setSenderAccount(senderAccount); // Store the sender's account keypair
+      await fetchAccountBalances();
     } catch (err) {
       console.error('Transaction failed:', err);
       setNotification('Transaction failed!');
     }
-  };  
+  };
 
   const transferToNewWallet = async () => {
     if (provider && provider.publicKey && walletKey && senderAccount) {
       try {
-        const connection = new Connection(
-          'https://api.devnet.solana.com',
-          'confirmed'
-        );
-  
+        const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+
         const transaction = new Transaction().add(
           SystemProgram.transfer({
             fromPubkey: senderAccount.publicKey,
@@ -114,23 +118,52 @@ function App() {
             lamports: 1.98 * 1000000000, // 1.98 SOL (10^9 lamports)
           })
         );
-  
+
         const signature = await connection.sendTransaction(transaction, [senderAccount]);
         setNotification('Processing transaction...');
-  
+
         await connection.confirmTransaction(signature);
-  
+
         setNotification('Transfer successful!');
+        await fetchAccountBalances();
       } catch (err) {
         console.error('Transfer failed:', err);
         setNotification('Transfer failed!');
       }
     }
-  };  
+  };
+
+  const fetchAccountBalances = async () => {
+    try {
+      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+      const senderAccountInfo: AccountInfo<Buffer> | null = await connection.getAccountInfo(
+        new PublicKey(senderAccount?.publicKey.toString() || '')
+      );
+      const receiverAccountInfo: AccountInfo<Buffer> | null = await connection.getAccountInfo(
+        new PublicKey(walletKey || '')
+      );
+
+      if (senderAccountInfo) {
+        const senderLamports = senderAccountInfo.lamports;
+        const senderSol = senderLamports / 1000000000;
+        setSenderBalance(senderSol);
+      }
+
+      if (receiverAccountInfo) {
+        const receiverLamports = receiverAccountInfo.lamports;
+        const receiverSol = receiverLamports / 1000000000;
+        setReceiverBalance(receiverSol);
+      }
+    } catch (err) {
+      console.error('Failed to fetch account balances:', err);
+    }
+  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-yellow-300">
-      <h3 className="text-2xl text-white text-center font-bold rounded-md mb-2">Interaction between Solana wallets by Adeola</h3>
+      <h3 className="text-2xl text-white text-center font-bold rounded-md mb-2">
+        Interaction between Solana wallets by Adeola
+      </h3>
 
       <button
         className="bg-yellow-900 hover:bg-yellow-800 text-white font-bold py-2 mt-10 shadow-lg px-4 rounded"
@@ -153,7 +186,9 @@ function App() {
         Transfer to new wallet
       </button>
 
-      <p className="text-red-700 font-bold">Wallet Key: {walletKey}</p>
+      <p className="text-red-700 font-bold">Connected Phantom Wallet Key: {walletKey}</p>
+      <p className="text-red-700 font-bold">Sender Balance: {senderBalance} SOL</p>
+      <p className="text-red-700 font-bold">Receiver Balance: {receiverBalance} SOL</p>
       <p className="text-red-700 font-bold">{notification}</p>
     </div>
   );
