@@ -40,7 +40,7 @@ interface PhantomProvider {
   request: (method: PhantomRequestMethod, params: any) => Promise<unknown>;
 }
 
-function App() {
+function WalletsInteraction() {
   const [provider, setProvider] = useState<PhantomProvider | undefined>(undefined);
   const [walletKey, setWalletKey] = useState<string | undefined>(undefined);
   const [notification, setNotification] = useState<string>('');
@@ -195,4 +195,4 @@ function App() {
   );
 }
 
-export default App;
+export default WalletsInteraction;
