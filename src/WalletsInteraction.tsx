@@ -187,7 +187,7 @@ function WalletsInteraction() {
         Transfer to new wallet
       </button>
 
-      <p className="text-red-700 font-bold">Connected Phantom Wallet Key: {walletKey}</p>
+      <p className="text-red-700 font-bold">Last Connected Wallet Key: {walletKey}</p>
       <p className="text-red-700 font-bold">Sender Balance: {senderBalance} SOL</p>
       <p className="text-red-700 font-bold">Receiver Balance: {receiverBalance} SOL</p>
       <p className="text-red-700 font-bold">{notification}</p>
