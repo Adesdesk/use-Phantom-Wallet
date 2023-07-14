@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Keypair, PublicKey, Transaction, Connection } from '@solana/web3.js';
+import { Keypair, PublicKey, Transaction, Connection, SystemProgram } from '@solana/web3.js';
+// assign the Buffer property of the buffer module to the global Buffer object in browser's window object.
+import * as buffer from "buffer";
+window.Buffer = buffer.Buffer;
 
 type DisplayEncoding = 'utf8' | 'hex';
 
@@ -34,6 +37,8 @@ function App() {
   const [provider, setProvider] = useState<PhantomProvider | undefined>(undefined);
   const [walletKey, setWalletKey] = useState<string | undefined>(undefined);
   const [notification, setNotification] = useState<string>('');
+  const [senderAccount, setSenderAccount] = useState<Keypair | undefined>(undefined);
+
 
   useEffect(() => {
     const provider = getProvider();
@@ -53,7 +58,7 @@ function App() {
     if (window.solana) {
       try {
         const response = await (window as any).solana.connect();
-        console.log('wallet account ', response.publicKey.toString());
+        console.log('wallet account', response.publicKey.toString());
         setWalletKey(response.publicKey.toString());
       } catch (err) {
         // { code: 4001, message: 'User rejected the request.' }
@@ -65,53 +70,91 @@ function App() {
   };
 
   const createAccount = async () => {
-    if (provider && provider.publicKey) {
-      try {
-        const keypair = Keypair.generate();
-        const publicKey = keypair.publicKey;
+    try {
+      const senderAccount = Keypair.generate(); // Generate a keypair for the sender's account
+      const publicKey = senderAccount.publicKey.toString();
+  
+      const connection = new Connection(
+        'https://api.devnet.solana.com',
+        'confirmed'
+      );
+  
+      // Request an airdrop to the sender's account
+      const airdropTx = await connection.requestAirdrop(
+        senderAccount.publicKey,
+        2 * 1000000000 // Airdrop 2 SOL (2 * 10^9 lamports)
+      );
+      setNotification('Processing transaction...');
+  
+      // Wait for the transaction to be confirmed
+      await connection.confirmTransaction(airdropTx);
+  
+      setWalletKey(publicKey);
+      setNotification('Transaction successful!');
+      setSenderAccount(senderAccount); // Store the sender's account keypair
+    } catch (err) {
+      console.error('Transaction failed:', err);
+      setNotification('Transaction failed!');
+    }
+  };  
 
+  const transferToNewWallet = async () => {
+    if (provider && provider.publicKey && walletKey && senderAccount) {
+      try {
         const connection = new Connection(
           'https://api.devnet.solana.com',
           'confirmed'
         );
-
-        // Request an airdrop to the new account
-        const airdropTx = await connection.requestAirdrop(
-          publicKey,
-          2 * 1000000000 // Airdrop 2 SOL (2 * 10^9 lamports)
+  
+        const transaction = new Transaction().add(
+          SystemProgram.transfer({
+            fromPubkey: senderAccount.publicKey,
+            toPubkey: new PublicKey(walletKey),
+            // Transferring 1.98 SOL as approximately 2 SOL to provide for transaction fees
+            lamports: 1.98 * 1000000000, // 1.98 SOL (10^9 lamports)
+          })
         );
+  
+        const signature = await connection.sendTransaction(transaction, [senderAccount]);
         setNotification('Processing transaction...');
-
-        // Wait for the transaction to be confirmed
-        await connection.confirmTransaction(airdropTx);
-
-        setWalletKey(publicKey.toString());
-        setNotification('Transaction successful!');
+  
+        await connection.confirmTransaction(signature);
+  
+        setNotification('Transfer successful!');
       } catch (err) {
-        console.error('Transaction failed:', err);
-        setNotification('Transaction failed!');
+        console.error('Transfer failed:', err);
+        setNotification('Transfer failed!');
       }
     }
-  };
+  };  
 
   return (
-    <div className="App">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-yellow-300">
+      <h3 className="text-2xl text-white text-center font-bold rounded-md mb-2">Interaction between Solana wallets by Adeola</h3>
+
       <button
-        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+        className="bg-yellow-900 hover:bg-yellow-800 text-white font-bold py-2 mt-10 shadow-lg px-4 rounded"
+        onClick={createAccount}
+      >
+        Create a new Solana account
+      </button>
+
+      <button
+        className="bg-red-700 hover:bg-red-600 text-white font-bold mt-5 shadow-lg py-2 px-4 rounded"
         onClick={connectWallet}
       >
         Connect to Phantom Wallet
       </button>
 
       <button
-        className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
-        onClick={createAccount}
+        className="bg-yellow-900 hover:bg-yellow-800 text-white font-bold mt-5 py-2 shadow-lg px-4 rounded"
+        onClick={transferToNewWallet}
       >
-        Create a new Solana account
+        Transfer to new wallet
       </button>
 
-      <p>{walletKey}</p>
-      <p>{notification}</p>
+      <p className="text-red-700 font-bold">Wallet Key: {walletKey}</p>
+      <p className="text-red-700 font-bold">{notification}</p>
     </div>
   );
 }
