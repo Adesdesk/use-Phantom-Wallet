@@ -70,7 +70,7 @@ function App() {
         setWalletKey(response.publicKey.toString());
         await fetchAccountBalances();
       } catch (err) {
-        // { code: 4001, message: 'User rejected the request.' }
+        
       }
     } else {
       // Redirect to the extension installation link
@@ -114,6 +114,7 @@ function App() {
           SystemProgram.transfer({
             fromPubkey: senderAccount.publicKey,
             toPubkey: new PublicKey(walletKey),
+            
             // Transferring 1.98 SOL as approximately 2 SOL to provide for transaction fees
             lamports: 1.98 * 1000000000, // 1.98 SOL (10^9 lamports)
           })
