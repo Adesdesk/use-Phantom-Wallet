@@ -162,7 +162,7 @@ function App() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-yellow-300">
-      <h3 className="text-2xl text-white text-center font-bold rounded-md mb-2">
+      <h3 className="text-2xl text-red-700 text-center font-bold rounded-md mb-2">
         Interaction between Solana wallets by Adeola
       </h3>
 
